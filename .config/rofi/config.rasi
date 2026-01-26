@@ -1,0 +1,136 @@
+@theme "/dev/null"
+@import "~/.cache/wal/colors-rofi.rasi"
+
+configuration {
+    modi: "drun,power: /home/harman/.config/rofi/powermenu.sh,wallpaper: /home/harman/.config/rofi/wallpaper-switcher.sh";
+    display-drun: "Apps";
+    display-power: "Power";
+    display-wallpaper: "Wallpapers";
+    drun-display-format: "{icon} {name}";
+    font: "JetBrainsMono Nerd Font 10";
+    show-icons: true;
+    icon-theme: "Papirus";
+    drun-use-desktop-cache: true;  
+    drun-reload-desktop-cache: false;
+}
+
+window {
+    transparency: "real";
+    location: center;
+    anchor: center;
+    width: 1000px;
+    border: 2px solid;
+    border-color: @primary;
+    border-radius: 15px;
+    background-color: @on-primary-fixed;
+}
+
+mainbox {
+    background-color: transparent;
+    orientation: horizontal;
+    children: [ "imagebox", "listbox" ];
+}
+
+imagebox {
+    padding: 20px;
+    background-color: transparent;
+    background-image: url("/home/harman/wallpapers/.rofi-preview.jpg", height);
+    orientation: vertical;
+    children: [ "inputbar", "dummy", "mode-switcher" ];
+}
+
+listbox {
+    spacing: 20px;
+    padding: 20px;
+    background-color: transparent;
+    orientation: vertical;
+    children: [ "message", "listview" ];
+}
+
+dummy {
+    background-color: transparent;
+}
+
+inputbar {
+    spacing: 10px;
+    padding: 15px;
+    border-radius: 10px;
+    background-color: @on-primary;
+    text-color: @on-surface;
+    children: [ "textbox-prompt-colon", "entry" ];
+}
+
+textbox-prompt-colon {
+    expand: false;
+    str: "  ";
+    background-color: inherit;
+    text-color: inherit;
+}
+
+entry {
+    background-color: inherit;
+    text-color: inherit;
+    placeholder: "Search";
+    placeholder-color: inherit;
+}
+
+mode-switcher {
+    spacing: 20px;
+    background-color: transparent;
+    text-color: @primary-fixed;
+}
+
+button {
+    padding: 15px;
+    border-radius: 10px;
+    background-color: @on-primary;
+    text-color: inherit;
+}
+
+button selected {
+    background-color: @primary;
+    text-color: @on-secondary;
+}
+
+listview {
+    columns: 1;
+    lines: 8;
+    spacing: 10px;
+    background-color: transparent;
+    text-color: @on-surface;
+}
+
+element {
+    spacing: 15px;
+    padding: 8px;
+    border-radius: 10px;
+    background-color: transparent;
+    text-color: @on-surface;
+}
+
+element selected.normal {
+    background-color: @primary;
+    text-color: @on-secondary;
+}
+
+element-icon {
+    background-color: transparent;
+    size: 32px;
+}
+
+element-text {
+    background-color: transparent;
+    text-color: inherit;
+    vertical-align: 0.5;
+}
+
+message {
+    background-color: transparent;
+}
+
+textbox {
+    padding: 15px;
+    border-radius: 10px;
+    background-color: @on-primary;
+    text-color: @on-surface;
+}

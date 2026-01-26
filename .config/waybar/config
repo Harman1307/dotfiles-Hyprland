@@ -1,0 +1,59 @@
+{
+    "layer": "top",
+    "position": "top",
+    "height": 16,
+    "margin": "2 8 0 8",
+    "spacing": 6,
+    
+    "modules-left": ["clock", "hyprland/workspaces"],
+    "modules-center": ["custom/media"],
+    "modules-right": ["battery", "custom/volume", "custom/network", "custom/notification"],
+
+    "clock": {
+        "format": "󰥔 {:%I:%M %p}",
+        "interval": 60,
+    },
+
+    "hyprland/workspaces": {
+        "format": "{name}",
+        "on-click": "activate",
+        "sort-by-number": true
+    },
+
+    "custom/media": {
+        "exec": "playerctl metadata --format '{{ artist }} - {{ title }}' 2>/dev/null || echo ''",
+        "interval": 2,
+        "max-length": 40,
+        "on-click": "playerctl play-pause",
+        "on-click-right": "quickshell ipc call music toggle"
+    },
+
+    "battery": {
+        "format": "󰁹 {capacity}%",
+        "format-charging": "󰂄 {capacity}%",
+        "tooltip": false
+    },
+
+    "custom/volume": {
+        "exec": "~/.config/waybar/scripts/volume.sh",
+        "on-click": "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle",
+        "on-scroll-up": "wpctl set-volume @DEFAULT_AUDIO_SINK@ 2%+",
+        "on-scroll-down": "wpctl set-volume @DEFAULT_AUDIO_SINK@ 2%-",
+        "tooltip": false
+    },
+
+    "custom/network": {
+        "exec": "~/.config/waybar/scripts/network.sh",
+        "interval": 5,
+        "on-click": "eww open bluetooth --toggle",
+        "on-click-right": "eww open wifi --toggle",
+        "tooltip": false
+    },
+
+    "custom/notification": {
+        "format": "󰍜",
+        "on-click": "qs ipc call dashboard toggle",
+
+        "tooltip": false
+    }
+}

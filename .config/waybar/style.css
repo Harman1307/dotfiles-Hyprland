@@ -1,0 +1,119 @@
+@import "/home/harman/.cache/wal/colors-waybar.css";
+
+* {
+    font-family: "JetBrainsMono Nerd Font";
+    font-size: 11px;
+    font-weight: bold;
+    min-height: 0;
+    border: none;
+    background: none;
+    margin: 0;
+    padding: 0;
+}
+
+window#waybar {
+    background: transparent;
+}
+
+tooltip {
+    color: @foreground;
+    background: rgba(0, 0, 0, 0.8);
+    border-radius: 12px;
+}
+
+#clock,
+#workspaces,
+#custom-media,
+#battery,
+#custom-volume,
+#custom-network,
+#custom-notification {
+    background: alpha(@background, 0.75);
+    border-radius: 16px;
+    padding: 3px 12px;
+    margin: 0px;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+#clock:hover,
+#custom-media:hover,
+#battery:hover,
+#custom-volume:hover,
+#custom-network:hover {
+    background: alpha(@background, 0.95);
+}
+
+#clock {
+    color: @blue;
+}
+
+#workspaces {
+    padding: 3px 6px;
+}
+
+#workspaces button {
+    background: transparent;
+    color: alpha(@foreground, 0.3);
+    padding: 2px 6px;
+    margin: 0px 1px;
+    border-radius: 8px;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+#workspaces button.active {
+    background: alpha(@pink, 0.75);
+    color: @background;
+    padding: 2px 16px;
+    border-radius: 16px;
+}
+
+#workspaces button.visible {
+    color: @foreground;
+    transition: all 0.3s ease;
+}
+
+#workspaces button:hover {
+    background: alpha(@pink, 0.4);
+    color: @foreground;
+}
+
+#custom-media {
+    color: @green;
+    padding: 3px 14px;
+}
+
+#battery {
+    color: @purple;
+    transition: color 0.4s ease;
+}
+
+#battery.charging {
+    color: @green;
+}
+
+#battery.warning {
+    color: @yellow;
+}
+
+#battery.critical {
+    color: @red;
+}
+
+#custom-volume {
+    color: @cyan;
+}
+
+#custom-network {
+    color: @foreground;
+}
+
+#custom-notification {
+    color: @red;
+    font-size: 20px;
+    transition: all 0.3s ease;
+}
+
+#custom-notification:hover {
+    background: alpha(@background, 0.95);
+    border-radius: 16px;
+}
