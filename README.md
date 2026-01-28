@@ -1,14 +1,16 @@
-### Harman's HyprLand Config
+# Harman's HyprLand Config
 
 
-WM: Hyprland
-Terminal: Kitty
-Widgets: QuickShell
-App Launcher: Rofi
-Lockscreen: Hyprlock
-Notifications: SwayNC
-Wallpapers: swww
-Bar: Waybar
+| Component | Tool |
+|-----------|------|
+| **WM** | Hyprland |
+| **Terminal** | Kitty |
+| **Widgets** | QuickShell |
+| **App Launcher** | Rofi |
+| **Lockscreen** | Hyprlock |
+| **Notifications** | SwayNC |
+| **Wallpapers** | swww |
+| **Bar** | Waybar |
 
 ## Screenshots
 
