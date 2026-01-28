@@ -1,4 +1,4 @@
-#Harman's HyprLand Config
+### Harman's HyprLand Config
 
 
 WM: Hyprland
