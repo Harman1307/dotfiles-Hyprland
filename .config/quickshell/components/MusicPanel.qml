@@ -35,7 +35,6 @@ PanelWindow {
     property bool gifsLoaded: false
     property int gifReloadCounter: 0
     property bool isApplyingGif: false
-    property string currentGifSource: "file://" + gifPath + "/current.gif"
     property int pendingGifIndex: -1
 
     function formatTime(seconds) {
@@ -61,7 +60,6 @@ PanelWindow {
         if (gifFiles.length > 0 && previewGifIndex < gifFiles.length) {
             isApplyingGif = true
             pendingGifIndex = previewGifIndex
-            danceGifLoader.active = false
             setGifProc.selFile = gifFiles[previewGifIndex]
             setGifProc.running = true
         }
@@ -83,10 +81,8 @@ PanelWindow {
 
     function reloadMainGif() {
         musicPanel.gifReloadCounter++
-        musicPanel.currentGifSource = "file://" + gifPath + "/current.gif?v=" + musicPanel.gifReloadCounter + "&t=" + Date.now()
-        danceGifLoader.active = true
-        musicPanel.isApplyingGif = false
-        musicPanel.pendingGifIndex = -1
+        mainGifImage.source = ""
+        gifSourceTimer.start()
     }
 
     function saveGifIndex() {
@@ -101,10 +97,36 @@ PanelWindow {
     }
 
     Timer {
+        id: gifSourceTimer
+        interval: 50
+        repeat: false
+        onTriggered: {
+            mainGifImage.source = "file://" + musicPanel.gifPath + "/current.gif?r=" + musicPanel.gifReloadCounter
+            musicPanel.isApplyingGif = false
+            musicPanel.pendingGifIndex = -1
+        }
+    }
+
+    Timer {
         id: gifReloadTimer
-        interval: 250
+        interval: 300
         repeat: false
         onTriggered: musicPanel.reloadMainGif()
+    }
+
+    Timer {
+        id: gifPlayRetryTimer
+        interval: 500
+        repeat: true
+        running: root.musicVisible && musicPanel.playerStatus === "Playing"
+        onTriggered: {
+            if (mainGifImage.status === AnimatedImage.Ready && mainGifImage.paused) {
+                mainGifImage.paused = false
+            }
+            if (mainGifImage.status === AnimatedImage.Ready && !mainGifImage.playing) {
+                mainGifImage.playing = true
+            }
+        }
     }
 
     Item {
@@ -318,21 +340,22 @@ PanelWindow {
                             width: 200
                             height: 160
 
-                            Loader {
-                                id: danceGifLoader
-                                anchors.fill: parent
-                                active: true
-                                sourceComponent: AnimatedImage {
-                                    anchors.centerIn: parent
-                                    width: parent.width
-                                    height: parent.height
-                                    source: musicPanel.currentGifSource
-                                    fillMode: Image.PreserveAspectFit
-                                    smooth: true
-                                    playing: musicPanel.playerStatus === "Playing"
-                                    paused: musicPanel.playerStatus !== "Playing"
-                                    cache: false
-                                    asynchronous: true
+                            AnimatedImage {
+                                id: mainGifImage
+                                anchors.centerIn: parent
+                                width: parent.width
+                                height: parent.height
+                                source: "file://" + musicPanel.gifPath + "/current.gif"
+                                fillMode: Image.PreserveAspectFit
+                                smooth: true
+                                playing: musicPanel.playerStatus === "Playing" && !musicPanel.isApplyingGif
+                                cache: false
+                                asynchronous: true
+                                onStatusChanged: {
+                                    if (status === AnimatedImage.Ready && musicPanel.playerStatus === "Playing") {
+                                        playing = true
+                                        paused = false
+                                    }
                                 }
                             }
                         }
@@ -484,20 +507,27 @@ PanelWindow {
                                 anchors.fill: parent
                                 anchors.margins: 12
 
-                                Loader {
-                                    id: previewGifLoader
-                                    anchors.fill: parent
-                                    active: musicPanel.gifSelectorOpen && musicPanel.gifsLoaded && musicPanel.gifFiles.length > 0
-                                    sourceComponent: AnimatedImage {
-                                        anchors.centerIn: parent
-                                        width: parent.width
-                                        height: parent.height
-                                        source: (musicPanel.gifFiles.length > 0 && musicPanel.previewGifIndex < musicPanel.gifFiles.length) ? "file://" + musicPanel.gifFiles[musicPanel.previewGifIndex] : ""
-                                        fillMode: Image.PreserveAspectFit
-                                        smooth: true
-                                        playing: musicPanel.gifSelectorOpen
-                                        cache: false
-                                        asynchronous: true
+                                AnimatedImage {
+                                    id: previewGifImage
+                                    anchors.centerIn: parent
+                                    width: parent.width
+                                    height: parent.height
+                                    source: {
+                                        if (!musicPanel.gifSelectorOpen || !musicPanel.gifsLoaded || musicPanel.gifFiles.length === 0)
+                                            return ""
+                                        if (musicPanel.previewGifIndex >= musicPanel.gifFiles.length)
+                                            return ""
+                                        return "file://" + musicPanel.gifFiles[musicPanel.previewGifIndex]
+                                    }
+                                    fillMode: Image.PreserveAspectFit
+                                    smooth: true
+                                    playing: musicPanel.gifSelectorOpen
+                                    cache: false
+                                    asynchronous: true
+                                    onStatusChanged: {
+                                        if (status === AnimatedImage.Ready && musicPanel.gifSelectorOpen) {
+                                            playing = true
+                                        }
                                     }
                                 }
                             }
@@ -704,6 +734,12 @@ PanelWindow {
         target: root
         function onMusicVisibleChanged() {
             if (root.musicVisible) {
+                if (mainGifImage.status === AnimatedImage.Ready) {
+                    if (musicPanel.playerStatus === "Playing") {
+                        mainGifImage.playing = true
+                        mainGifImage.paused = false
+                    }
+                }
                 focusTimer.start()
             }
         }
@@ -762,7 +798,6 @@ PanelWindow {
             } else {
                 musicPanel.isApplyingGif = false
                 musicPanel.pendingGifIndex = -1
-                danceGifLoader.active = true
             }
         }
     }
@@ -793,8 +828,15 @@ PanelWindow {
                 if (!musicLenProc.running) musicLenProc.running = true
                 if (isNowPlaying) {
                     if (!musicPosProc.running) musicPosProc.running = true
+                    if (mainGifImage.status === AnimatedImage.Ready) {
+                        mainGifImage.playing = true
+                        mainGifImage.paused = false
+                    }
                 } else if (wasPlaying && !isNowPlaying) {
                     musicPanel.lastPosition = musicPanel.position
+                    if (mainGifImage.status === AnimatedImage.Ready) {
+                        mainGifImage.paused = true
+                    }
                 } else if (!isNowPlaying) {
                     musicPanel.position = musicPanel.lastPosition
                 }
