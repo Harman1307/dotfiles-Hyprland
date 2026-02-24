@@ -331,16 +331,8 @@ ShellRoot {
         }
         onExited: {
             if (root.walApplying) {
-                if (!walStepWaybar.running) walStepWaybar.running = true
+                if (!walStepSwaync.running) walStepSwaync.running = true
             }
-        }
-    }
-
-    Process {
-        id: walStepWaybar
-        command: ["bash", "-c", "killall waybar 2>/dev/null; waybar &"]
-        onExited: {
-            if (!walStepSwaync.running) walStepSwaync.running = true
         }
     }
 
@@ -595,6 +587,7 @@ ShellRoot {
         onTriggered: refreshBluetooth()
     }
 
+    Bar {}
     Dashboard {}
     MusicPanel {}
     WifiPanel {}

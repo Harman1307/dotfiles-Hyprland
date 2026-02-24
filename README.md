@@ -10,7 +10,7 @@
 | **Lockscreen** | Hyprlock |
 | **Notifications** | SwayNC |
 | **Wallpapers** | swww + pywal |
-| **Bar** | Waybar |
+| **Bar** | Quickshell |
 
 ## Screenshots
 

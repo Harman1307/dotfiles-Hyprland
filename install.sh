@@ -6,7 +6,7 @@ cd "$(dirname "$0")"
 [[ ! -d .config ]] && echo "cant find .config" && exit 1
 
 install_deps() {
-  sudo pacman -S --needed hyprland hyprlock hypridle kitty thunar waybar swww swaync cava fastfetch starship python-pywal kdeconnect grim slurp mpd mpc gnuplot ttf-jetbrains-mono-nerd alsa-utils networkmanager bluez bluez-utils wireplumber brightnessctl playerctl imagemagick || exit 1
+  sudo pacman -S --needed hyprland hyprlock hypridle kitty thunar swww swaync cava fastfetch starship python-pywal kdeconnect grim slurp mpd mpc ttf-jetbrains-mono-nerd alsa-utils networkmanager bluez bluez-utils wireplumber brightnessctl playerctl imagemagick || exit 1
 
   if command -v yay &>/dev/null; then
     yay -S --needed gpu-screen-recorder rmpc mpd-mpris quickshell-git
@@ -40,8 +40,6 @@ install_configs() {
   echo '#!/bin/bash
 pkill quickshell; nohup quickshell &>/dev/null &' > ~/.local/bin/start-quickshell.sh
   chmod +x ~/.local/bin/start-quickshell.sh
-
-  grep -rl '/home/harman' ~/.config/hypr ~/.config/waybar ~/.config/quickshell 2>/dev/null | xargs -r sed -i "s|/home/harman|$HOME|g"
 
   chmod +x ~/.config/scripts/* 2>/dev/null
 }
