@@ -1,5 +1,6 @@
 import Quickshell
 import Quickshell.Io
+import Quickshell.Wayland
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
@@ -13,6 +14,8 @@ PanelWindow {
     margins { top: 40; bottom: 10; right: root.dashboardVisible ? 6 : -450 }
     implicitWidth: 420
     color: "transparent"
+    focusable: true
+    WlrLayershell.keyboardFocus: root.dashboardVisible ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
     Behavior on margins.right { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
 
     property int cpuVal: 0
@@ -21,207 +24,232 @@ PanelWindow {
     property int batVal: 100
     property int volVal: 50
     property int brightVal: 100
+    property string configPath: Quickshell.env("HOME") + "/.config/quickshell"
 
-    Rectangle {
+    Item {
         anchors.fill: parent
-        color: Qt.rgba(root.walBackground.r, root.walBackground.g, root.walBackground.b, 0.7)
-        radius: 20
+        focus: root.dashboardVisible
 
-        ColumnLayout {
+        Keys.onPressed: function(event) {
+            if (event.key === Qt.Key_Escape) {
+                if (profileSection.pfpPickerOpen) {
+                    profileSection.pfpPickerOpen = false
+                } else {
+                    root.dashboardVisible = false
+                }
+                event.accepted = true
+            }
+        }
+
+        Rectangle {
             anchors.fill: parent
-            anchors.margins: 20
-            spacing: 15
+            color: Qt.rgba(root.walBackground.r, root.walBackground.g, root.walBackground.b, 0.7)
+            radius: 20
 
-            Rectangle {
-                id: profileSection
-                Layout.fillWidth: true
-                Layout.preferredHeight: pfpPickerOpen ? 280 : 100
-                color: Qt.rgba(0, 0, 0, 0.3)
-                radius: 15
-                clip: true
-                property bool pfpPickerOpen: false
-                Behavior on Layout.preferredHeight { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
-                ColumnLayout {
-                    anchors.fill: parent
-                    anchors.margins: 15
-                    spacing: 15
-                    RowLayout {
-                        Layout.fillWidth: true
+            MouseArea {
+                anchors.fill: parent
+                visible: profileSection.pfpPickerOpen
+                onClicked: profileSection.pfpPickerOpen = false
+                z: 50
+            }
+
+            ColumnLayout {
+                anchors.fill: parent
+                anchors.margins: 20
+                spacing: 15
+                z: 100
+
+                Rectangle {
+                    id: profileSection
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: pfpPickerOpen ? 280 : 100
+                    color: Qt.rgba(0, 0, 0, 0.3)
+                    radius: 15
+                    clip: true
+                    property bool pfpPickerOpen: false
+                    Behavior on Layout.preferredHeight { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+                    ColumnLayout {
+                        anchors.fill: parent
+                        anchors.margins: 15
                         spacing: 15
-                        Item {
-                            id: pfpContainer
-                            width: 74
-                            height: 74
-                            Rectangle {
-                                id: pfpBorder
-                                anchors.fill: parent
-                                radius: 37
-                                color: "transparent"
-                                border.width: 3
-                                border.color: root.walColor5
-                            }
-                            Image {
-                                id: pfpImage
-                                anchors.centerIn: parent
-                                width: 68
-                                height: 68
-                                source: "file:///home/harman/.config/quickshell/assets/pfps/pfp.jpg"
-                                fillMode: Image.PreserveAspectCrop
-                                smooth: true
-                                cache: false
-                                sourceSize.width: 256
-                                sourceSize.height: 256
-                                visible: false
-                                property int reloadTrigger: 0
-                                function reload() {
-                                    reloadTrigger++
-                                    source = ""
-                                    source = "file:///home/harman/.config/quickshell/assets/pfps/pfp.jpg?" + reloadTrigger
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 15
+                            Item {
+                                id: pfpContainer
+                                width: 74
+                                height: 74
+                                Rectangle {
+                                    id: pfpBorder
+                                    anchors.fill: parent
+                                    radius: 37
+                                    color: "transparent"
+                                    border.width: 3
+                                    border.color: root.walColor5
+                                }
+                                Image {
+                                    id: pfpImage
+                                    anchors.centerIn: parent
+                                    width: 68
+                                    height: 68
+                                    source: "file://" + dashboard.configPath + "/assets/pfps/pfp.jpg"
+                                    fillMode: Image.PreserveAspectCrop
+                                    smooth: true
+                                    cache: false
+                                    sourceSize.width: 256
+                                    sourceSize.height: 256
+                                    visible: false
+                                    property int reloadTrigger: 0
+                                    function reload() {
+                                        reloadTrigger++
+                                        source = ""
+                                        source = "file://" + dashboard.configPath + "/assets/pfps/pfp.jpg?" + reloadTrigger
+                                    }
+                                }
+                                Rectangle {
+                                    id: pfpMask
+                                    anchors.centerIn: parent
+                                    width: 68
+                                    height: 68
+                                    radius: 34
+                                    visible: false
+                                }
+                                OpacityMask {
+                                    anchors.centerIn: parent
+                                    width: 68
+                                    height: 68
+                                    source: pfpImage
+                                    maskSource: pfpMask
+                                }
+                                Rectangle {
+                                    anchors.right: parent.right
+                                    anchors.bottom: parent.bottom
+                                    width: 22
+                                    height: 22
+                                    radius: 11
+                                    color: root.walColor5
+                                    border.width: 2
+                                    border.color: root.walBackground
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: "󰏫"
+                                        color: root.walBackground
+                                        font.pixelSize: 12
+                                        font.family: "JetBrainsMono Nerd Font"
+                                    }
+                                }
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: {
+                                        profileSection.pfpPickerOpen = !profileSection.pfpPickerOpen
+                                        if (profileSection.pfpPickerOpen) {
+                                            root.pfpFiles = []
+                                            pfpListProc.running = true
+                                        }
+                                    }
                                 }
                             }
-                            Rectangle {
-                                id: pfpMask
-                                anchors.centerIn: parent
-                                width: 68
-                                height: 68
-                                radius: 34
-                                visible: false
-                            }
-                            OpacityMask {
-                                anchors.centerIn: parent
-                                width: 68
-                                height: 68
-                                source: pfpImage
-                                maskSource: pfpMask
-                            }
-                            Rectangle {
-                                anchors.right: parent.right
-                                anchors.bottom: parent.bottom
-                                width: 22
-                                height: 22
-                                radius: 11
-                                color: root.walColor5
-                                border.width: 2
-                                border.color: root.walBackground
+                            ColumnLayout {
+                                Layout.fillWidth: true
+                                spacing: 5
                                 Text {
-                                    anchors.centerIn: parent
-                                    text: "󰏫"
-                                    color: root.walBackground
+                                    text: Quickshell.env("USER")
+                                    color: root.walColor5
+                                    font.pixelSize: 26
+                                    font.bold: true
+                                    font.family: "JetBrainsMono Nerd Font"
+                                }
+                                Text {
+                                    id: uptimeText
+                                    text: "up ..."
+                                    color: root.walForeground
                                     font.pixelSize: 12
                                     font.family: "JetBrainsMono Nerd Font"
                                 }
                             }
-                            MouseArea {
-                                anchors.fill: parent
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: {
-                                    profileSection.pfpPickerOpen = !profileSection.pfpPickerOpen
-                                    if (profileSection.pfpPickerOpen) {
-                                        root.pfpFiles = []
-                                        pfpListProc.running = true
-                                    }
-                                }
-                            }
                         }
-                        ColumnLayout {
+                        Rectangle {
                             Layout.fillWidth: true
-                            spacing: 5
-                            Text {
-                                text: "Harman"
-                                color: root.walColor5
-                                font.pixelSize: 26
-                                font.bold: true
-                                font.family: "JetBrainsMono Nerd Font"
-                            }
-                            Text {
-                                id: uptimeText
-                                text: "up ..."
-                                color: root.walForeground
-                                font.pixelSize: 12
-                                font.family: "JetBrainsMono Nerd Font"
-                            }
-                        }
-                    }
-                    Rectangle {
-                        Layout.fillWidth: true
-                        Layout.fillHeight: true
-                        color: Qt.rgba(0, 0, 0, 0.3)
-                        radius: 10
-                        visible: profileSection.pfpPickerOpen
-                        ColumnLayout {
-                            anchors.fill: parent
-                            anchors.margins: 10
-                            spacing: 8
-                            Text {
-                                text: "Choose Avatar"
-                                color: root.walColor5
-                                font.pixelSize: 12
-                                font.bold: true
-                                font.family: "JetBrainsMono Nerd Font"
-                                Layout.alignment: Qt.AlignHCenter
-                            }
-                            Flickable {
-                                Layout.fillWidth: true
-                                Layout.fillHeight: true
-                                contentWidth: width
-                                contentHeight: pfpGrid.height
-                                clip: true
-                                ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
-                                GridLayout {
-                                    id: pfpGrid
-                                    width: parent.width
-                                    columns: 6
-                                    rowSpacing: 8
-                                    columnSpacing: 8
-                                    Repeater {
-                                        model: root.pfpFiles
-                                        Item {
-                                            width: 48
-                                            height: 48
-                                            Layout.alignment: Qt.AlignHCenter
-                                            Rectangle {
-                                                anchors.fill: parent
-                                                radius: 24
-                                                color: "transparent"
-                                                border.width: 2
-                                                border.color: thumbMa.containsMouse ? root.walColor13 : root.walColor5
-                                                Behavior on border.color { ColorAnimation { duration: 150 } }
-                                            }
-                                            Image {
-                                                id: thumbImg
-                                                anchors.centerIn: parent
-                                                width: 44
-                                                height: 44
-                                                source: "file://" + modelData
-                                                fillMode: Image.PreserveAspectCrop
-                                                smooth: true
-                                                sourceSize.width: 128
-                                                sourceSize.height: 128
-                                                visible: false
-                                            }
-                                            Rectangle {
-                                                id: thumbMask
-                                                anchors.centerIn: parent
-                                                width: 44
-                                                height: 44
-                                                radius: 22
-                                                visible: false
-                                            }
-                                            OpacityMask {
-                                                anchors.centerIn: parent
-                                                width: 44
-                                                height: 44
-                                                source: thumbImg
-                                                maskSource: thumbMask
-                                            }
-                                            MouseArea {
-                                                id: thumbMa
-                                                anchors.fill: parent
-                                                hoverEnabled: true
-                                                cursorShape: Qt.PointingHandCursor
-                                                onClicked: {
-                                                    setPfpProc.selFile = modelData
-                                                    setPfpProc.running = true
+                            Layout.fillHeight: true
+                            color: Qt.rgba(0, 0, 0, 0.3)
+                            radius: 10
+                            visible: profileSection.pfpPickerOpen
+                            ColumnLayout {
+                                anchors.fill: parent
+                                anchors.margins: 10
+                                spacing: 8
+                                Text {
+                                    text: "Choose Avatar"
+                                    color: root.walColor5
+                                    font.pixelSize: 12
+                                    font.bold: true
+                                    font.family: "JetBrainsMono Nerd Font"
+                                    Layout.alignment: Qt.AlignHCenter
+                                }
+                                Flickable {
+                                    Layout.fillWidth: true
+                                    Layout.fillHeight: true
+                                    contentWidth: width
+                                    contentHeight: pfpGrid.height
+                                    clip: true
+                                    ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+                                    GridLayout {
+                                        id: pfpGrid
+                                        width: parent.width
+                                        columns: 6
+                                        rowSpacing: 8
+                                        columnSpacing: 8
+                                        Repeater {
+                                            model: root.pfpFiles
+                                            Item {
+                                                width: 48
+                                                height: 48
+                                                Layout.alignment: Qt.AlignHCenter
+                                                Rectangle {
+                                                    anchors.fill: parent
+                                                    radius: 24
+                                                    color: "transparent"
+                                                    border.width: 2
+                                                    border.color: thumbMa.containsMouse ? root.walColor13 : root.walColor5
+                                                    Behavior on border.color { ColorAnimation { duration: 150 } }
+                                                }
+                                                Image {
+                                                    id: thumbImg
+                                                    anchors.centerIn: parent
+                                                    width: 44
+                                                    height: 44
+                                                    source: "file://" + modelData
+                                                    fillMode: Image.PreserveAspectCrop
+                                                    smooth: true
+                                                    sourceSize.width: 128
+                                                    sourceSize.height: 128
+                                                    visible: false
+                                                }
+                                                Rectangle {
+                                                    id: thumbMask
+                                                    anchors.centerIn: parent
+                                                    width: 44
+                                                    height: 44
+                                                    radius: 22
+                                                    visible: false
+                                                }
+                                                OpacityMask {
+                                                    anchors.centerIn: parent
+                                                    width: 44
+                                                    height: 44
+                                                    source: thumbImg
+                                                    maskSource: thumbMask
+                                                }
+                                                MouseArea {
+                                                    id: thumbMa
+                                                    anchors.fill: parent
+                                                    hoverEnabled: true
+                                                    cursorShape: Qt.PointingHandCursor
+                                                    onClicked: {
+                                                        setPfpProc.selFile = modelData
+                                                        setPfpProc.running = true
+                                                    }
                                                 }
                                             }
                                         }
@@ -230,265 +258,293 @@ PanelWindow {
                             }
                         }
                     }
-                }
-                Process {
-                    id: pfpListProc
-                    command: ["bash", "-c", "find /home/harman/.config/quickshell/assets/pfps -maxdepth 1 -type f \\( -iname '*.jpg' -o -iname '*.png' -o -iname '*.gif' \\) ! -name 'pfp.jpg' | sort"]
-                    stdout: SplitParser {
-                        onRead: data => {
-                            var file = data.trim()
-                            if (file.length > 0) {
-                                var current = root.pfpFiles.slice()
-                                current.push(file)
-                                root.pfpFiles = current
-                            }
-                        }
-                    }
-                }
-                Process {
-                    id: setPfpProc
-                    property string selFile: ""
-                    command: ["bash", "-c", "cp '" + selFile + "' /home/harman/.config/quickshell/assets/pfps/pfp.jpg"]
-                    onExited: {
-                        pfpImage.reload()
-                        profileSection.pfpPickerOpen = false
-                    }
-                }
-            }
-
-            Rectangle {
-                Layout.fillWidth: true
-                Layout.preferredHeight: 50
-                color: Qt.rgba(0, 0, 0, 0.3)
-                radius: 15
-                Row {
-                    anchors.centerIn: parent
-                    spacing: 25
-                    PowerBtn { icon: "⏻"; iconColor: root.walColor2; cmd: "systemctl poweroff" }
-                    PowerBtn { icon: "󰜉"; iconColor: root.walColor13; cmd: "systemctl reboot" }
-                    PowerBtn { icon: "󰌾"; iconColor: root.walColor5; cmd: "hyprlock" }
-                    PowerBtn { icon: "󰒲"; iconColor: root.walColor4; cmd: "systemctl suspend" }
-                    PowerBtn { icon: "󰍃"; iconColor: root.walColor1; cmd: "hyprctl dispatch exit" }
-                }
-            }
-
-            Rectangle {
-                Layout.fillWidth: true
-                Layout.preferredHeight: 70
-                color: Qt.rgba(0, 0, 0, 0.3)
-                radius: 15
-                RowLayout {
-                    anchors.fill: parent
-                    anchors.margins: 15
-                    spacing: 15
-                    Text {
-                        id: batIcon
-                        text: "󰁹"
-                        color: root.walColor2
-                        font.pixelSize: 32
-                        font.family: "JetBrainsMono Nerd Font"
-                    }
-                    ColumnLayout {
-                        Layout.fillWidth: true
-                        spacing: 3
-                        Text {
-                            text: "Battery " + dashboard.batVal + "%"
-                            color: root.walForeground
-                            font.pixelSize: 18
-                            font.family: "JetBrainsMono Nerd Font"
-                        }
-                        Text {
-                            id: batStatus
-                            text: "Checking..."
-                            color: root.walColor8
-                            font.pixelSize: 12
-                            font.family: "JetBrainsMono Nerd Font"
-                        }
-                    }
-                }
-            }
-
-            Rectangle {
-                Layout.fillWidth: true
-                Layout.preferredHeight: 140
-                color: Qt.rgba(0, 0, 0, 0.3)
-                radius: 15
-                Row {
-                    anchors.centerIn: parent
-                    spacing: 30
-                    CircularStat { label: "CPU"; icon: ""; barColor: root.walColor1; value: dashboard.cpuVal }
-                    CircularStat { label: "RAM"; icon: ""; barColor: root.walColor5; value: dashboard.ramVal }
-                    CircularStat { label: "DISK"; icon: ""; barColor: root.walColor4; value: dashboard.diskVal }
-                }
-            }
-
-            Rectangle {
-                Layout.fillWidth: true
-                Layout.preferredHeight: 100
-                color: Qt.rgba(0, 0, 0, 0.3)
-                radius: 15
-                Column {
-                    anchors.fill: parent
-                    anchors.margins: 15
-                    spacing: 15
-                    Row {
-                        width: parent.width
-                        spacing: 10
-                        Text {
-                            width: 25
-                            text: dashboard.volVal == 0 ? "󰝟" : dashboard.volVal < 50 ? "󰖀" : "󰕾"
-                            color: root.walColor4
-                            font.pixelSize: 18
-                            font.family: "JetBrainsMono Nerd Font"
-                            verticalAlignment: Text.AlignVCenter
-                            height: 24
-                            MouseArea {
-                                anchors.fill: parent
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: volMuteProc.running = true
-                            }
-                            Process {
-                                id: volMuteProc
-                                command: ["bash", "-c", "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"]
-                                onExited: volProc.running = true
-                            }
-                        }
-                        Rectangle {
-                            id: volSlider
-                            width: parent.width - 75
-                            height: 8
-                            anchors.verticalCenter: parent.verticalCenter
-                            radius: 4
-                            color: Qt.rgba(0,0,0,0.3)
-                            Rectangle {
-                                width: parent.width * dashboard.volVal / 100
-                                height: parent.height
-                                radius: 4
-                                color: root.walColor4
-                                Behavior on width { NumberAnimation { duration: 100 } }
-                            }
-                            MouseArea {
-                                anchors.fill: parent
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: function(mouse) {
-                                    var percent = Math.round((mouse.x / parent.width) * 100)
-                                    percent = Math.max(0, Math.min(100, percent))
-                                    dashboard.volVal = percent
-                                    volSetProc.command = ["bash", "-c", "wpctl set-volume @DEFAULT_AUDIO_SINK@ " + (percent / 100).toFixed(2)]
-                                    volSetProc.running = true
+                    Process {
+                        id: pfpListProc
+                        command: ["bash", "-c", "find " + dashboard.configPath + "/assets/pfps -maxdepth 1 -type f \\( -iname '*.jpg' -o -iname '*.png' -o -iname '*.gif' \\) ! -name 'pfp.jpg' | sort"]
+                        stdout: SplitParser {
+                            onRead: data => {
+                                var file = data.trim()
+                                if (file.length > 0) {
+                                    var current = root.pfpFiles.slice()
+                                    current.push(file)
+                                    root.pfpFiles = current
                                 }
-                                onPositionChanged: function(mouse) {
-                                    if (pressed) {
+                            }
+                        }
+                    }
+                    Process {
+                        id: setPfpProc
+                        property string selFile: ""
+                        command: ["bash", "-c", "cp '" + selFile + "' " + dashboard.configPath + "/assets/pfps/pfp.jpg"]
+                        onExited: {
+                            pfpImage.reload()
+                            profileSection.pfpPickerOpen = false
+                        }
+                    }
+                }
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 50
+                    color: Qt.rgba(0, 0, 0, 0.3)
+                    radius: 15
+                    Row {
+                        anchors.centerIn: parent
+                        spacing: 25
+                        PowerBtn { icon: "⏻"; iconColor: root.walColor2; cmd: "systemctl poweroff" }
+                        PowerBtn { icon: "󰜉"; iconColor: root.walColor13; cmd: "systemctl reboot" }
+                        PowerBtn { icon: "󰌾"; iconColor: root.walColor5; cmd: "hyprlock" }
+                        PowerBtn { icon: "󰒲"; iconColor: root.walColor4; cmd: "systemctl suspend" }
+                        PowerBtn { icon: "󰍃"; iconColor: root.walColor1; cmd: "hyprctl dispatch exit" }
+                    }
+                }
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 70
+                    color: Qt.rgba(0, 0, 0, 0.3)
+                    radius: 15
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.margins: 15
+                        spacing: 15
+                        Text {
+                            id: batIcon
+                            text: "󰁹"
+                            color: root.walColor2
+                            font.pixelSize: 32
+                            font.family: "JetBrainsMono Nerd Font"
+                        }
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 3
+                            Text {
+                                text: "Battery " + dashboard.batVal + "%"
+                                color: root.walForeground
+                                font.pixelSize: 18
+                                font.family: "JetBrainsMono Nerd Font"
+                            }
+                            Text {
+                                id: batStatus
+                                text: "Checking..."
+                                color: root.walColor8
+                                font.pixelSize: 12
+                                font.family: "JetBrainsMono Nerd Font"
+                            }
+                        }
+                    }
+                }
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 140
+                    color: Qt.rgba(0, 0, 0, 0.3)
+                    radius: 15
+                    Row {
+                        anchors.centerIn: parent
+                        spacing: 30
+                        CircularStat { label: "CPU"; icon: ""; barColor: root.walColor1; value: dashboard.cpuVal }
+                        CircularStat { label: "RAM"; icon: ""; barColor: root.walColor5; value: dashboard.ramVal }
+                        CircularStat { label: "DISK"; icon: ""; barColor: root.walColor4; value: dashboard.diskVal }
+                    }
+                }
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 100
+                    color: Qt.rgba(0, 0, 0, 0.3)
+                    radius: 15
+                    Column {
+                        anchors.fill: parent
+                        anchors.margins: 15
+                        spacing: 15
+                        Row {
+                            width: parent.width
+                            spacing: 10
+                            Text {
+                                width: 25
+                                text: dashboard.volVal == 0 ? "󰝟" : dashboard.volVal < 50 ? "󰖀" : "󰕾"
+                                color: root.walColor4
+                                font.pixelSize: 18
+                                font.family: "JetBrainsMono Nerd Font"
+                                verticalAlignment: Text.AlignVCenter
+                                height: 24
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: volMuteProc.running = true
+                                }
+                                Process {
+                                    id: volMuteProc
+                                    command: ["bash", "-c", "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"]
+                                    onExited: volProc.running = true
+                                }
+                            }
+                            Rectangle {
+                                id: volSlider
+                                width: parent.width - 75
+                                height: 8
+                                anchors.verticalCenter: parent.verticalCenter
+                                radius: 4
+                                color: Qt.rgba(0,0,0,0.3)
+                                Rectangle {
+                                    width: parent.width * dashboard.volVal / 100
+                                    height: parent.height
+                                    radius: 4
+                                    color: root.walColor4
+                                    Behavior on width { NumberAnimation { duration: 100 } }
+                                }
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: function(mouse) {
                                         var percent = Math.round((mouse.x / parent.width) * 100)
                                         percent = Math.max(0, Math.min(100, percent))
                                         dashboard.volVal = percent
                                         volSetProc.command = ["bash", "-c", "wpctl set-volume @DEFAULT_AUDIO_SINK@ " + (percent / 100).toFixed(2)]
                                         volSetProc.running = true
                                     }
+                                    onPositionChanged: function(mouse) {
+                                        if (pressed) {
+                                            var percent = Math.round((mouse.x / parent.width) * 100)
+                                            percent = Math.max(0, Math.min(100, percent))
+                                            dashboard.volVal = percent
+                                            volSetProc.command = ["bash", "-c", "wpctl set-volume @DEFAULT_AUDIO_SINK@ " + (percent / 100).toFixed(2)]
+                                            volSetProc.running = true
+                                        }
+                                    }
                                 }
+                                Process { id: volSetProc }
                             }
-                            Process { id: volSetProc }
+                            Text {
+                                width: 40
+                                text: dashboard.volVal + "%"
+                                color: root.walColor8
+                                font.pixelSize: 11
+                                font.family: "JetBrainsMono Nerd Font"
+                                horizontalAlignment: Text.AlignRight
+                                verticalAlignment: Text.AlignVCenter
+                                height: 24
+                            }
                         }
-                        Text {
-                            width: 40
-                            text: dashboard.volVal + "%"
-                            color: root.walColor8
-                            font.pixelSize: 11
-                            font.family: "JetBrainsMono Nerd Font"
-                            horizontalAlignment: Text.AlignRight
-                            verticalAlignment: Text.AlignVCenter
-                            height: 24
-                        }
-                    }
-                    Row {
-                        width: parent.width
-                        spacing: 10
-                        Text {
-                            width: 25
-                            text: dashboard.brightVal < 30 ? "󰃞" : dashboard.brightVal < 70 ? "󰃟" : "󰃠"
-                            color: root.walColor13
-                            font.pixelSize: 18
-                            font.family: "JetBrainsMono Nerd Font"
-                            verticalAlignment: Text.AlignVCenter
-                            height: 24
-                        }
-                        Rectangle {
-                            id: brightSlider
-                            width: parent.width - 75
-                            height: 8
-                            anchors.verticalCenter: parent.verticalCenter
-                            radius: 4
-                            color: Qt.rgba(0,0,0,0.3)
-                            Rectangle {
-                                width: parent.width * dashboard.brightVal / 100
-                                height: parent.height
-                                radius: 4
+                        Row {
+                            width: parent.width
+                            spacing: 10
+                            Text {
+                                width: 25
+                                text: dashboard.brightVal < 30 ? "󰃞" : dashboard.brightVal < 70 ? "󰃟" : "󰃠"
                                 color: root.walColor13
-                                Behavior on width { NumberAnimation { duration: 100 } }
+                                font.pixelSize: 18
+                                font.family: "JetBrainsMono Nerd Font"
+                                verticalAlignment: Text.AlignVCenter
+                                height: 24
                             }
-                            MouseArea {
-                                anchors.fill: parent
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: function(mouse) {
-                                    var percent = Math.round((mouse.x / parent.width) * 100)
-                                    percent = Math.max(1, Math.min(100, percent))
-                                    dashboard.brightVal = percent
-                                    brightSetProc.command = ["bash", "-c", "brightnessctl set " + percent + "%"]
-                                    brightSetProc.running = true
+                            Rectangle {
+                                id: brightSlider
+                                width: parent.width - 75
+                                height: 8
+                                anchors.verticalCenter: parent.verticalCenter
+                                radius: 4
+                                color: Qt.rgba(0,0,0,0.3)
+                                Rectangle {
+                                    width: parent.width * dashboard.brightVal / 100
+                                    height: parent.height
+                                    radius: 4
+                                    color: root.walColor13
+                                    Behavior on width { NumberAnimation { duration: 100 } }
                                 }
-                                onPositionChanged: function(mouse) {
-                                    if (pressed) {
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: function(mouse) {
                                         var percent = Math.round((mouse.x / parent.width) * 100)
                                         percent = Math.max(1, Math.min(100, percent))
                                         dashboard.brightVal = percent
                                         brightSetProc.command = ["bash", "-c", "brightnessctl set " + percent + "%"]
                                         brightSetProc.running = true
                                     }
+                                    onPositionChanged: function(mouse) {
+                                        if (pressed) {
+                                            var percent = Math.round((mouse.x / parent.width) * 100)
+                                            percent = Math.max(1, Math.min(100, percent))
+                                            dashboard.brightVal = percent
+                                            brightSetProc.command = ["bash", "-c", "brightnessctl set " + percent + "%"]
+                                            brightSetProc.running = true
+                                        }
+                                    }
                                 }
+                                Process { id: brightSetProc }
                             }
-                            Process { id: brightSetProc }
+                            Text {
+                                width: 40
+                                text: dashboard.brightVal + "%"
+                                color: root.walColor8
+                                font.pixelSize: 11
+                                font.family: "JetBrainsMono Nerd Font"
+                                horizontalAlignment: Text.AlignRight
+                                verticalAlignment: Text.AlignVCenter
+                                height: 24
+                            }
+                        }
+                    }
+                }
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    color: Qt.rgba(0, 0, 0, 0.3)
+                    radius: 15
+                    Column {
+                        anchors.fill: parent
+                        anchors.margins: 15
+                        spacing: 10
+                        Text {
+                            id: timeDisplay
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            text: "12:00:00 AM"
+                            color: root.walColor5
+                            font.pixelSize: 40
+                            font.family: "JetBrainsMono Nerd Font"
                         }
                         Text {
-                            width: 40
-                            text: dashboard.brightVal + "%"
-                            color: root.walColor8
-                            font.pixelSize: 11
+                            id: dateDisplay
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            text: "01.01.2026, Friday"
+                            color: root.walForeground
+                            font.pixelSize: 14
                             font.family: "JetBrainsMono Nerd Font"
-                            horizontalAlignment: Text.AlignRight
-                            verticalAlignment: Text.AlignVCenter
-                            height: 24
                         }
                     }
                 }
             }
+        }
+    }
 
-            Rectangle {
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                color: Qt.rgba(0, 0, 0, 0.3)
-                radius: 15
-                Column {
-                    anchors.fill: parent
-                    anchors.margins: 15
-                    spacing: 10
-                    Text {
-                        id: timeDisplay
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        text: "12:00:00 AM"
-                        color: root.walColor5
-                        font.pixelSize: 40
-                        font.family: "JetBrainsMono Nerd Font"
-                    }
-                    Text {
-                        id: dateDisplay
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        text: "01.01.2026, Friday"
-                        color: root.walForeground
-                        font.pixelSize: 14
-                        font.family: "JetBrainsMono Nerd Font"
-                    }
-                }
+    Connections {
+        target: root
+        function onDashboardVisibleChanged() {
+            if (root.dashboardVisible) {
+                focusTimer.start()
             }
+        }
+    }
+
+    Timer {
+        id: focusTimer
+        interval: 50
+        repeat: false
+        onTriggered: {
+            dashboard.WlrLayershell.keyboardFocus = WlrKeyboardFocus.Exclusive
+            releaseTimer.start()
+        }
+    }
+
+    Timer {
+        id: releaseTimer
+        interval: 100
+        repeat: false
+        onTriggered: {
+            dashboard.WlrLayershell.keyboardFocus = WlrKeyboardFocus.OnDemand
         }
     }
 
@@ -606,18 +662,18 @@ PanelWindow {
 
     Timer {
         interval: 2000
-        running: true
+        running: root.dashboardVisible
         repeat: true
         triggeredOnStart: true
         onTriggered: {
-            cpuProc.running = true
-            ramProc.running = true
-            diskProc.running = true
-            batProc.running = true
-            batStatusProc.running = true
-            volProc.running = true
-            brightProc.running = true
-            uptimeProc.running = true
+            if (!cpuProc.running) cpuProc.running = true
+            if (!ramProc.running) ramProc.running = true
+            if (!diskProc.running) diskProc.running = true
+            if (!batProc.running) batProc.running = true
+            if (!batStatusProc.running) batStatusProc.running = true
+            if (!volProc.running) volProc.running = true
+            if (!brightProc.running) brightProc.running = true
+            if (!uptimeProc.running) uptimeProc.running = true
         }
     }
 

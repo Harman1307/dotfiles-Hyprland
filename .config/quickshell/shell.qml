@@ -10,6 +10,12 @@ import "./components"
 ShellRoot {
     id: root
 
+    property string configPath: Quickshell.env("HOME") + "/.config/quickshell"
+    property string homePath: Quickshell.env("HOME")
+    property string wallpaperPath: homePath + "/wallpapers"
+    property string cachePath: homePath + "/.cache"
+    property string statePath: configPath + "/state"
+
     property bool dashboardVisible: false
     property bool musicVisible: false
     property bool launcherVisible: false
@@ -83,12 +89,15 @@ ShellRoot {
     property color walColor8: "#6c7086"
     property color walColor13: "#f5c2e7"
 
+    property int savedGifIndex: 0
+
     function toggleLauncher() { launcherVisible = !launcherVisible }
 
     function toggleDashboard() {
         dashboardVisible = !dashboardVisible
         if (dashboardVisible) { wifiVisible = false; btVisible = false }
     }
+
     function toggleMusic() { musicVisible = !musicVisible }
 
     function toggleWifi() {
@@ -101,12 +110,20 @@ ShellRoot {
         if (btVisible) { wifiVisible = false; dashboardVisible = false; refreshBluetooth() }
     }
 
+    function closeAllPanels() {
+        dashboardVisible = false
+        musicVisible = false
+        launcherVisible = false
+        wifiVisible = false
+        btVisible = false
+    }
+
     function refreshBluetooth() {
         root.btPairedDevices = []
         root.btAvailableDevices = []
         root.btScanning = false
         root.btConnectingMAC = ""
-        btStatusProc.running = true
+        if (!btStatusProc.running) btStatusProc.running = true
     }
 
     function connectBt(mac) {
@@ -134,17 +151,66 @@ ShellRoot {
     function refreshWifi() {
         root.wifiNetworks = []
         root.wifiScanning = true
-        wifiStatusProc.running = true
-        wifiCurrentProc.running = true
-        wifiScanProc.running = true
+        if (!wifiStatusProc.running) wifiStatusProc.running = true
+        if (!wifiCurrentProc.running) wifiCurrentProc.running = true
+        if (!wifiScanProc.running) wifiScanProc.running = true
+    }
+
+    function saveState(key, value) {
+        saveStateProc.command = ["bash", "-c", "mkdir -p '" + statePath + "' && echo '" + value + "' > '" + statePath + "/" + key + "'"]
+        saveStateProc.running = true
+    }
+
+    function loadState(key, callback) {
+        loadStateProc.stateKey = key
+        loadStateProc.callback = callback
+        loadStateProc.command = ["cat", statePath + "/" + key]
+        loadStateProc.running = true
     }
 
     Component.onCompleted: {
-        walColorsProc.running = true
-        appListProc.running = true
-        loadUsageProc.running = true
-        currentWallProc.running = true
-        thumbDirProc.running = true
+        initStateDir.running = true
+    }
+
+    Process {
+        id: initStateDir
+        command: ["mkdir", "-p", root.statePath]
+        onExited: {
+            walColorsProc.running = true
+            appListProc.running = true
+            loadUsageProc.running = true
+            currentWallProc.running = true
+            thumbDirProc.running = true
+            loadGifIndexProc.running = true
+        }
+    }
+
+    Process {
+        id: loadGifIndexProc
+        command: ["bash", "-c", "cat '" + root.statePath + "/gif-index' 2>/dev/null || echo '0'"]
+        stdout: SplitParser {
+            onRead: data => {
+                var idx = parseInt(data.trim())
+                root.savedGifIndex = isNaN(idx) ? 0 : idx
+            }
+        }
+    }
+
+    Process {
+        id: saveStateProc
+    }
+
+    Process {
+        id: loadStateProc
+        property string stateKey: ""
+        property var callback: null
+        stdout: SplitParser {
+            onRead: data => {
+                if (loadStateProc.callback) {
+                    loadStateProc.callback(data.trim())
+                }
+            }
+        }
     }
 
     function launchApp(app) {
@@ -155,7 +221,7 @@ ShellRoot {
         for (var key in usage) updated[key] = usage[key]
         updated[app.name] = (updated[app.name] || 0) + 1
         appUsage = updated
-        saveUsageProc.command = ["bash", "-c", "echo '" + JSON.stringify(updated) + "' > /home/harman/.config/quickshell/app_usage.json"]
+        saveUsageProc.command = ["bash", "-c", "echo '" + JSON.stringify(updated) + "' > '" + root.configPath + "/app_usage.json'"]
         saveUsageProc.running = true
         root.launcherVisible = false
     }
@@ -164,7 +230,7 @@ ShellRoot {
         root.currentWallpaper = wallpaper.path
         root.walApplying = true
         applyWallProc.command = ["bash", "-c",
-            "ln -sf '" + wallpaper.path + "' ~/wallpapers/current && " +
+            "ln -sf '" + wallpaper.path + "' '" + root.wallpaperPath + "/current' && " +
             "swww img '" + wallpaper.path + "' --transition-type any --transition-duration 2 & " +
             "wal -i '" + wallpaper.path + "' -n -q && " +
             "sleep 0.3"
@@ -176,18 +242,18 @@ ShellRoot {
         root.wallpaperList = []
         root.wallsLoaded = false
         root.thumbsReady = false
-        wallpaperListProc.running = true
+        if (!wallpaperListProc.running) wallpaperListProc.running = true
     }
 
     Process {
         id: thumbDirProc
-        command: ["bash", "-c", "mkdir -p ~/.cache/wallpaper-thumbs"]
+        command: ["mkdir", "-p", root.cachePath + "/wallpaper-thumbs"]
         onExited: root.loadWallpapers()
     }
 
     Process {
         id: wallpaperListProc
-        command: ["bash", "-c", "find ~/wallpapers -maxdepth 1 -type f \\( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.gif' -o -iname '*.png' -o -iname '*.webp' \\) ! -name '.*' | sort"]
+        command: ["bash", "-c", "find '" + root.wallpaperPath + "' -maxdepth 1 -type f \\( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.gif' -o -iname '*.png' -o -iname '*.webp' \\) ! -name '.*' 2>/dev/null | sort"]
         stdout: SplitParser {
             onRead: data => {
                 var path = data.trim()
@@ -201,52 +267,48 @@ ShellRoot {
         }
         onExited: {
             root.wallsLoaded = true
-            thumbGenProc.running = true
+            if (!thumbGenProc.running) thumbGenProc.running = true
         }
     }
 
     Process {
         id: thumbGenProc
         command: ["bash", "-c",
-            "cd ~/.cache/wallpaper-thumbs && " +
-            "if command -v vipsthumbnail >/dev/null 2>&1; then " +
-            "  find ~/wallpapers -maxdepth 1 -type f \\( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.gif' -o -iname '*.png' -o -iname '*.webp' \\) ! -name '.*' | " +
-            "  while IFS= read -r f; do " +
-            "    hash=$(echo -n \"$f\" | md5sum | cut -d' ' -f1); " +
-            "    thumb=\"$HOME/.cache/wallpaper-thumbs/${hash}.jpg\"; " +
-            "    if [ ! -f \"$thumb\" ] || [ \"$f\" -nt \"$thumb\" ]; then " +
+            "THUMB_DIR='" + root.cachePath + "/wallpaper-thumbs' && " +
+            "WALL_DIR='" + root.wallpaperPath + "' && " +
+            "cd \"$THUMB_DIR\" && " +
+            "find \"$WALL_DIR\" -maxdepth 1 -type f \\( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.gif' -o -iname '*.png' -o -iname '*.webp' \\) ! -name '.*' 2>/dev/null | " +
+            "while IFS= read -r f; do " +
+            "  hash=$(echo -n \"$f\" | md5sum | cut -d' ' -f1); " +
+            "  thumb=\"$THUMB_DIR/${hash}.jpg\"; " +
+            "  if [ ! -f \"$thumb\" ] || [ \"$f\" -nt \"$thumb\" ]; then " +
+            "    if command -v vipsthumbnail >/dev/null 2>&1; then " +
             "      case \"$f\" in " +
-            "        *.gif) convert \"${f}[0]\" -define jpeg:size=400x300 -thumbnail 180x120^ -gravity center -extent 180x120 -strip -interlace none -quality 85 \"$thumb\" 2>/dev/null & ;; " +
-            "        *) vipsthumbnail \"$f\" -s 180x120 -c \"jpegsave $thumb[Q=85,strip]\" 2>/dev/null || " +
-            "           convert \"$f\" -define jpeg:size=400x300 -thumbnail 180x120^ -gravity center -extent 180x120 -strip -interlace none -quality 85 \"$thumb\" 2>/dev/null & ;; " +
+            "        *.gif) convert \"${f}[0]\" -thumbnail 180x120^ -gravity center -extent 180x120 -quality 85 \"$thumb\" 2>/dev/null ;; " +
+            "        *) vipsthumbnail \"$f\" -s 180x120 -o \"$thumb\" 2>/dev/null || convert \"$f\" -thumbnail 180x120^ -gravity center -extent 180x120 -quality 85 \"$thumb\" 2>/dev/null ;; " +
+            "      esac; " +
+            "    else " +
+            "      case \"$f\" in " +
+            "        *.gif) convert \"${f}[0]\" -thumbnail 180x120^ -gravity center -extent 180x120 -quality 85 \"$thumb\" 2>/dev/null ;; " +
+            "        *) convert \"$f\" -thumbnail 180x120^ -gravity center -extent 180x120 -quality 85 \"$thumb\" 2>/dev/null ;; " +
             "      esac; " +
             "    fi; " +
-            "  done; " +
-            "else " +
-            "  find ~/wallpapers -maxdepth 1 -type f \\( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.gif' -o -iname '*.png' -o -iname '*.webp' \\) ! -name '.*' | " +
-            "  while IFS= read -r f; do " +
-            "    hash=$(echo -n \"$f\" | md5sum | cut -d' ' -f1); " +
-            "    thumb=\"$HOME/.cache/wallpaper-thumbs/${hash}.jpg\"; " +
-            "    if [ ! -f \"$thumb\" ] || [ \"$f\" -nt \"$thumb\" ]; then " +
-            "      case \"$f\" in " +
-            "        *.gif) convert \"${f}[0]\" -define jpeg:size=400x300 -thumbnail 180x120^ -gravity center -extent 180x120 -strip -interlace none -quality 85 \"$thumb\" 2>/dev/null & ;; " +
-            "        *) convert \"$f\" -define jpeg:size=400x300 -thumbnail 180x120^ -gravity center -extent 180x120 -strip -interlace none -quality 85 \"$thumb\" 2>/dev/null & ;; " +
-            "      esac; " +
-            "    fi; " +
-            "  done; " +
-            "fi; wait"
+            "  fi; " +
+            "done"
         ]
         onExited: root.thumbsReady = true
     }
 
     Process {
         id: applyWallProc
-        onExited: walColorsProc.running = true
+        onExited: {
+            if (!walColorsProc.running) walColorsProc.running = true
+        }
     }
 
     Process {
         id: walColorsProc
-        command: ["bash", "-c", "cat /home/harman/.cache/wal/colors.json"]
+        command: ["bash", "-c", "cat '" + root.cachePath + "/wal/colors.json' 2>/dev/null"]
         stdout: SplitParser {
             splitMarker: ""
             onRead: data => {
@@ -268,20 +330,26 @@ ShellRoot {
             }
         }
         onExited: {
-            if (root.walApplying) walStepWaybar.running = true
+            if (root.walApplying) {
+                if (!walStepWaybar.running) walStepWaybar.running = true
+            }
         }
     }
 
     Process {
         id: walStepWaybar
-        command: ["bash", "-c", "killall waybar; waybar &"]
-        onExited: walStepSwaync.running = true
+        command: ["bash", "-c", "killall waybar 2>/dev/null; waybar &"]
+        onExited: {
+            if (!walStepSwaync.running) walStepSwaync.running = true
+        }
     }
 
     Process {
         id: walStepSwaync
-        command: ["bash", "-c", "cp ~/.cache/wal/colors-swaync.css ~/.config/swaync/style.css && pkill -SIGUSR1 swaync"]
-        onExited: walStepBlur.running = true
+        command: ["bash", "-c", "cp '" + root.cachePath + "/wal/colors-swaync.css' '" + root.configPath + "/../swaync/style.css' 2>/dev/null; pkill -SIGUSR1 swaync 2>/dev/null"]
+        onExited: {
+            if (!walStepBlur.running) walStepBlur.running = true
+        }
     }
 
     Process {
@@ -289,22 +357,22 @@ ShellRoot {
         command: {
             var wp = root.currentWallpaper
             if (wp.endsWith(".gif"))
-                return ["bash", "-c", "convert '" + wp + "[0]' -resize 1920x -blur 0x8 -quality 85 ~/wallpapers/.current-blurred.jpg"]
+                return ["bash", "-c", "convert '" + wp + "[0]' -resize 1920x -blur 0x8 -quality 85 '" + root.wallpaperPath + "/.current-blurred.jpg' 2>/dev/null"]
             else
-                return ["bash", "-c", "convert '" + wp + "' -resize 1920x -blur 0x8 -quality 85 ~/wallpapers/.current-blurred.jpg"]
+                return ["bash", "-c", "convert '" + wp + "' -resize 1920x -blur 0x8 -quality 85 '" + root.wallpaperPath + "/.current-blurred.jpg' 2>/dev/null"]
         }
         onExited: root.walApplying = false
     }
 
     Process {
         id: currentWallProc
-        command: ["bash", "-c", "readlink -f ~/wallpapers/current 2>/dev/null || echo ''"]
+        command: ["bash", "-c", "readlink -f '" + root.wallpaperPath + "/current' 2>/dev/null || echo ''"]
         stdout: SplitParser { onRead: data => root.currentWallpaper = data.trim() }
     }
 
     Process {
         id: loadUsageProc
-        command: ["bash", "-c", "cat /home/harman/.config/quickshell/app_usage.json 2>/dev/null || echo '{}'"]
+        command: ["bash", "-c", "cat '" + root.configPath + "/app_usage.json' 2>/dev/null || echo '{}'"]
         stdout: SplitParser {
             splitMarker: ""
             onRead: data => {
@@ -318,21 +386,19 @@ ShellRoot {
 
     Process {
         id: appListProc
-        command: ["bash", "-c", String.raw`
-            for f in /usr/share/applications/*.desktop /home/harman/.local/share/applications/*.desktop; do
-                [ -f "$f" ] || continue
-                nodisplay=$(grep -i '^NoDisplay=true' "$f")
-                [ -n "$nodisplay" ] && continue
-                hidden=$(grep -i '^Hidden=true' "$f")
-                [ -n "$hidden" ] && continue
-                name=$(grep -m1 '^Name=' "$f" | cut -d= -f2-)
-                exec=$(grep -m1 '^Exec=' "$f" | cut -d= -f2- | sed 's/ %[fFuUdDnNickvm]//g')
-                icon=$(grep -m1 '^Icon=' "$f" | cut -d= -f2-)
-                [ -z "$name" ] && continue
-                [ -z "$exec" ] && continue
-                printf '%s\t%s\t%s\n' "$name" "$exec" "$icon"
-            done | sort -f -t$'\t' -k1,1 | awk -F'\t' '!seen[$1]++'
-        `]
+        command: ["bash", "-c",
+            "for f in /usr/share/applications/*.desktop '" + root.homePath + "/.local/share/applications'/*.desktop; do " +
+            "  [ -f \"$f\" ] || continue; " +
+            "  grep -qi '^NoDisplay=true' \"$f\" && continue; " +
+            "  grep -qi '^Hidden=true' \"$f\" && continue; " +
+            "  name=$(grep -m1 '^Name=' \"$f\" | cut -d= -f2-); " +
+            "  exec=$(grep -m1 '^Exec=' \"$f\" | cut -d= -f2- | sed 's/ %[fFuUdDnNickvm]//g'); " +
+            "  icon=$(grep -m1 '^Icon=' \"$f\" | cut -d= -f2-); " +
+            "  [ -z \"$name\" ] && continue; " +
+            "  [ -z \"$exec\" ] && continue; " +
+            "  printf '%s\\t%s\\t%s\\n' \"$name\" \"$exec\" \"$icon\"; " +
+            "done | sort -f -t$'\\t' -k1,1 | awk -F'\\t' '!seen[$1]++'"
+        ]
         stdout: SplitParser {
             onRead: data => {
                 var line = data.trim()
@@ -348,13 +414,13 @@ ShellRoot {
 
     Process {
         id: wifiStatusProc
-        command: ["bash", "-c", "nmcli radio wifi"]
+        command: ["bash", "-c", "nmcli radio wifi 2>/dev/null || echo 'disabled'"]
         stdout: SplitParser { onRead: data => root.wifiEnabled = data.trim() === "enabled" }
     }
 
     Process {
         id: wifiCurrentProc
-        command: ["bash", "-c", "nmcli -t -f active,ssid,signal dev wifi | grep '^yes' | head -1"]
+        command: ["bash", "-c", "nmcli -t -f active,ssid,signal dev wifi 2>/dev/null | grep '^yes' | head -1"]
         stdout: SplitParser {
             onRead: data => {
                 var parts = data.trim().split(":")
@@ -397,7 +463,7 @@ ShellRoot {
         id: wifiToggleProc
         command: ["bash", "-c", root.wifiEnabled ? "nmcli radio wifi off" : "nmcli radio wifi on"]
         onExited: {
-            wifiStatusProc.running = true
+            if (!wifiStatusProc.running) wifiStatusProc.running = true
             if (!root.wifiEnabled) wifiScanDelayTimer.start()
         }
     }
@@ -422,13 +488,13 @@ ShellRoot {
         onExited: {
             root.wifiConnecting = false
             root.wifiPasswordSSID = ""
-            wifiCurrentProc.running = true
+            if (!wifiCurrentProc.running) wifiCurrentProc.running = true
         }
     }
 
     Process {
         id: wifiDisconnectProc
-        command: ["bash", "-c", "nmcli dev disconnect wlan0 2>/dev/null; nmcli dev disconnect wlp0s20f3 2>/dev/null"]
+        command: ["bash", "-c", "nmcli dev disconnect wlan0 2>/dev/null; nmcli dev disconnect wlp0s20f3 2>/dev/null; nmcli dev disconnect $(nmcli -t -f device,type dev | grep ':wifi$' | cut -d: -f1 | head -1) 2>/dev/null"]
         onExited: {
             root.wifiCurrentSSID = ""
             root.wifiSignal = 0
@@ -442,16 +508,14 @@ ShellRoot {
             onRead: data => root.btEnabled = data.trim() === "true"
         }
         onExited: {
-            if (root.btEnabled) btDevicesProc.running = true
+            if (root.btEnabled && !btDevicesProc.running) btDevicesProc.running = true
         }
     }
 
     Process {
         id: btToggleOnProc
         command: ["bash", "-c", "echo -e 'power on\\nquit' | bluetoothctl 2>/dev/null"]
-        onExited: {
-            btToggleDelayTimer.start()
-        }
+        onExited: btToggleDelayTimer.start()
     }
 
     Timer {

@@ -1,5 +1,6 @@
 import Quickshell
 import Quickshell.Io
+import Quickshell.Wayland
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
@@ -14,8 +15,12 @@ PanelWindow {
     implicitWidth: 400
     implicitHeight: musicPanel.gifSelectorOpen ? 460 : 188
     color: "transparent"
+    focusable: true
+    WlrLayershell.keyboardFocus: root.musicVisible ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
     Behavior on margins.top { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
 
+    property string configPath: root.configPath
+    property string gifPath: configPath + "/assets/gifs"
     property string playerStatus: "Stopped"
     property string trackTitle: ""
     property string trackArtist: ""
@@ -24,13 +29,13 @@ PanelWindow {
     property real length: 0
     property bool hasTrack: playerStatus === "Playing" || playerStatus === "Paused"
     property var gifFiles: []
-    property int currentGifIndex: 0
+    property int currentGifIndex: root.savedGifIndex
     property int previewGifIndex: 0
     property bool gifSelectorOpen: false
     property bool gifsLoaded: false
     property int gifReloadCounter: 0
     property bool isApplyingGif: false
-    property string currentGifSource: "file:///home/harman/.config/quickshell/assets/gifs/current.gif"
+    property string currentGifSource: "file://" + gifPath + "/current.gif"
     property int pendingGifIndex: -1
 
     function formatTime(seconds) {
@@ -78,10 +83,15 @@ PanelWindow {
 
     function reloadMainGif() {
         musicPanel.gifReloadCounter++
-        musicPanel.currentGifSource = "file:///home/harman/.config/quickshell/assets/gifs/current.gif?v=" + musicPanel.gifReloadCounter + "&t=" + Date.now()
+        musicPanel.currentGifSource = "file://" + gifPath + "/current.gif?v=" + musicPanel.gifReloadCounter + "&t=" + Date.now()
         danceGifLoader.active = true
         musicPanel.isApplyingGif = false
         musicPanel.pendingGifIndex = -1
+    }
+
+    function saveGifIndex() {
+        root.saveState("gif-index", currentGifIndex.toString())
+        root.savedGifIndex = currentGifIndex
     }
 
     onGifSelectorOpenChanged: {
@@ -99,6 +109,38 @@ PanelWindow {
 
     Item {
         anchors.fill: parent
+        focus: root.musicVisible
+
+        Keys.onPressed: function(event) {
+            if (event.key === Qt.Key_Escape) {
+                if (musicPanel.gifSelectorOpen) {
+                    musicPanel.gifSelectorOpen = false
+                } else {
+                    root.musicVisible = false
+                }
+                event.accepted = true
+            } else if (event.key === Qt.Key_Space && !musicPanel.gifSelectorOpen) {
+                if (!playPauseProc.running) playPauseProc.running = true
+                event.accepted = true
+            } else if (event.key === Qt.Key_N && !musicPanel.gifSelectorOpen) {
+                if (!nextProc.running) nextProc.running = true
+                event.accepted = true
+            } else if (event.key === Qt.Key_P && !musicPanel.gifSelectorOpen) {
+                if (!prevProc.running) prevProc.running = true
+                event.accepted = true
+            } else if (event.key === Qt.Key_Left && musicPanel.gifSelectorOpen) {
+                musicPanel.prevGif()
+                event.accepted = true
+            } else if (event.key === Qt.Key_Right && musicPanel.gifSelectorOpen) {
+                musicPanel.nextGif()
+                event.accepted = true
+            } else if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter) && musicPanel.gifSelectorOpen) {
+                if (musicPanel.previewGifIndex !== musicPanel.currentGifIndex) {
+                    musicPanel.applyGif()
+                }
+                event.accepted = true
+            }
+        }
 
         Column {
             anchors.horizontalCenter: parent.horizontalCenter
@@ -331,6 +373,13 @@ PanelWindow {
                         }
                     }
                 }
+
+                MouseArea {
+                    anchors.fill: parent
+                    visible: musicPanel.gifSelectorOpen
+                    onClicked: musicPanel.gifSelectorOpen = false
+                    z: -1
+                }
             }
 
             Rectangle {
@@ -339,7 +388,7 @@ PanelWindow {
                 height: 260
                 anchors.horizontalCenter: parent.horizontalCenter
                 radius: 14
-                color: Qt.rgba(root.walBackground.r, root.walBackground.g, root.walBackground.b, 0.75)
+                color: Qt.rgba(root.walBackground.r, root.walBackground.g, root.walBackground.b, 0.85)
                 border.color: Qt.rgba(1,1,1,0.1)
                 border.width: 1
                 visible: musicPanel.gifSelectorOpen
@@ -609,14 +658,79 @@ PanelWindow {
                             }
                         }
                     }
+
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 22
+                        color: Qt.rgba(0,0,0,0.2)
+                        radius: 6
+
+                        RowLayout {
+                            anchors.fill: parent
+                            anchors.leftMargin: 10
+                            anchors.rightMargin: 10
+
+                            Text {
+                                text: "←→ nav"
+                                color: root.walColor8
+                                font.pixelSize: 9
+                                font.family: "JetBrainsMono Nerd Font"
+                                opacity: 0.6
+                            }
+                            Item { Layout.fillWidth: true }
+                            Text {
+                                text: "↵ apply"
+                                color: root.walColor8
+                                font.pixelSize: 9
+                                font.family: "JetBrainsMono Nerd Font"
+                                opacity: 0.6
+                            }
+                            Item { Layout.fillWidth: true }
+                            Text {
+                                text: "esc close"
+                                color: root.walColor8
+                                font.pixelSize: 9
+                                font.family: "JetBrainsMono Nerd Font"
+                                opacity: 0.6
+                            }
+                        }
+                    }
                 }
             }
         }
     }
 
+    Connections {
+        target: root
+        function onMusicVisibleChanged() {
+            if (root.musicVisible) {
+                focusTimer.start()
+            }
+        }
+    }
+
+    Timer {
+        id: focusTimer
+        interval: 50
+        repeat: false
+        onTriggered: {
+            musicPanel.WlrLayershell.keyboardFocus = WlrKeyboardFocus.Exclusive
+            releaseTimer.start()
+        }
+    }
+
+    Timer {
+        id: releaseTimer
+        interval: 100
+        repeat: false
+        onTriggered: {
+            musicPanel.WlrLayershell.keyboardFocus = WlrKeyboardFocus.OnDemand
+        }
+    }
+
     Process {
         id: gifListProc
-        command: ["sh", "-c", "find /home/harman/.config/quickshell/assets/gifs -maxdepth 1 -name '*.gif' ! -name 'current.gif' -type f 2>/dev/null | sort"]
+        command: ["sh", "-c", "find '" + musicPanel.gifPath + "' -maxdepth 1 -name '*.gif' ! -name 'current.gif' -type f 2>/dev/null | sort"]
         stdout: SplitParser {
             onRead: data => {
                 var file = data.trim()
@@ -638,11 +752,12 @@ PanelWindow {
     Process {
         id: setGifProc
         property string selFile: ""
-        command: ["cp", selFile, "/home/harman/.config/quickshell/assets/gifs/current.gif"]
+        command: ["cp", selFile, musicPanel.gifPath + "/current.gif"]
         onExited: code => {
             if (code === 0 && musicPanel.pendingGifIndex >= 0) {
                 musicPanel.currentGifIndex = musicPanel.pendingGifIndex
                 musicPanel.gifSelectorOpen = false
+                musicPanel.saveGifIndex()
                 gifReloadTimer.start()
             } else {
                 musicPanel.isApplyingGif = false

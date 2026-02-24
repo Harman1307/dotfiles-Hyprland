@@ -113,6 +113,8 @@ PanelWindow {
                     anchors.fill: parent
                     spacing: 15
                     visible: root.activeTab === 0
+                    opacity: root.activeTab === 0 ? 1 : 0
+                    Behavior on opacity { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
 
                     Rectangle {
                         Layout.fillWidth: true
@@ -149,10 +151,12 @@ PanelWindow {
                                     anchors.left: parent.left
                                     anchors.verticalCenter: parent.verticalCenter
                                     font: parent.font
+                                    opacity: 0.6
                                 }
                                 onTextChanged: {
                                     root.searchTerm = text.toLowerCase()
                                     root.selectedIndex = 0
+                                    appListView.contentY = 0
                                 }
                                 Keys.onPressed: function(event) {
                                     if (event.key === Qt.Key_Down) {
@@ -185,10 +189,18 @@ PanelWindow {
                                 color: root.walColor8
                                 font.pixelSize: 12
                                 font.family: "JetBrainsMono Nerd Font"
+                                opacity: clearAppMouse.containsMouse ? 1.0 : 0.7
+                                Behavior on opacity { NumberAnimation { duration: 100 } }
                                 MouseArea {
+                                    id: clearAppMouse
                                     anchors.fill: parent
+                                    anchors.margins: -4
+                                    hoverEnabled: true
                                     cursorShape: Qt.PointingHandCursor
-                                    onClicked: searchInput.text = ""
+                                    onClicked: {
+                                        searchInput.text = ""
+                                        searchInput.forceActiveFocus()
+                                    }
                                 }
                             }
                         }
@@ -200,6 +212,7 @@ PanelWindow {
                         color: Qt.rgba(0, 0, 0, 0.3)
                         radius: 15
                         clip: true
+
                         ListView {
                             id: appListView
                             anchors.fill: parent
@@ -210,6 +223,49 @@ PanelWindow {
                             highlightFollowsCurrentItem: true
                             highlightMoveDuration: 100
                             model: root.filteredApps
+
+                            property real targetContentY: 0
+                            property bool animatingScroll: false
+
+                            NumberAnimation {
+                                id: appScrollAnim
+                                target: appListView
+                                property: "contentY"
+                                duration: 300
+                                easing.type: Easing.OutCubic
+                                onFinished: appListView.animatingScroll = false
+                            }
+
+                            function smoothScrollTo(newY) {
+                                var maxY = Math.max(0, contentHeight - height)
+                                newY = Math.max(0, Math.min(newY, maxY))
+                                if (animatingScroll) {
+                                    appScrollAnim.stop()
+                                }
+                                animatingScroll = true
+                                appScrollAnim.from = contentY
+                                appScrollAnim.to = newY
+                                targetContentY = newY
+                                appScrollAnim.start()
+                            }
+
+                            function smoothScrollBy(delta) {
+                                var base = animatingScroll ? targetContentY : contentY
+                                smoothScrollTo(base + delta)
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                propagateComposedEvents: true
+                                onWheel: function(wheel) {
+                                    var step = -wheel.angleDelta.y / 120.0 * 60
+                                    appListView.smoothScrollBy(step)
+                                }
+                                onClicked: function(mouse) { mouse.accepted = false }
+                                onPressed: function(mouse) { mouse.accepted = false }
+                                onReleased: function(mouse) { mouse.accepted = false }
+                            }
+
                             delegate: Rectangle {
                                 width: appListView.width
                                 height: 48
@@ -270,6 +326,7 @@ PanelWindow {
                                             font.family: "JetBrainsMono Nerd Font"
                                             font.bold: index === root.selectedIndex
                                             elide: Text.ElideRight
+                                            Behavior on color { ColorAnimation { duration: 120 } }
                                         }
                                         Text {
                                             Layout.fillWidth: true
@@ -301,7 +358,11 @@ PanelWindow {
                                     }
                                 }
                             }
-                            ScrollBar.vertical: ScrollBar { active: true; width: 4 }
+                            ScrollBar.vertical: ScrollBar {
+                                active: true
+                                width: 4
+                                policy: ScrollBar.AsNeeded
+                            }
                         }
                         Text {
                             anchors.centerIn: parent
@@ -337,6 +398,8 @@ PanelWindow {
                     anchors.fill: parent
                     spacing: 15
                     visible: root.activeTab === 1
+                    opacity: root.activeTab === 1 ? 1 : 0
+                    Behavior on opacity { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
 
                     Rectangle {
                         Layout.fillWidth: true
@@ -373,25 +436,31 @@ PanelWindow {
                                     anchors.left: parent.left
                                     anchors.verticalCenter: parent.verticalCenter
                                     font: parent.font
+                                    opacity: 0.6
                                 }
                                 onTextChanged: {
                                     root.wallSearchTerm = text.toLowerCase()
                                     root.wallSelectedIndex = 0
+                                    wallGridView.contentY = 0
                                 }
                                 Keys.onPressed: function(event) {
                                     var cols = 3
                                     var total = root.filteredWallpapers.length
                                     if (event.key === Qt.Key_Right) {
                                         root.wallSelectedIndex = Math.min(root.wallSelectedIndex + 1, total - 1)
+                                        wallGridView.positionViewAtIndex(root.wallSelectedIndex, GridView.Contain)
                                         event.accepted = true
                                     } else if (event.key === Qt.Key_Left) {
                                         root.wallSelectedIndex = Math.max(root.wallSelectedIndex - 1, 0)
+                                        wallGridView.positionViewAtIndex(root.wallSelectedIndex, GridView.Contain)
                                         event.accepted = true
                                     } else if (event.key === Qt.Key_Down) {
                                         root.wallSelectedIndex = Math.min(root.wallSelectedIndex + cols, total - 1)
+                                        wallGridView.positionViewAtIndex(root.wallSelectedIndex, GridView.Contain)
                                         event.accepted = true
                                     } else if (event.key === Qt.Key_Up) {
                                         root.wallSelectedIndex = Math.max(root.wallSelectedIndex - cols, 0)
+                                        wallGridView.positionViewAtIndex(root.wallSelectedIndex, GridView.Contain)
                                         event.accepted = true
                                     } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
                                         if (total > 0 && root.wallSelectedIndex >= 0 && root.wallSelectedIndex < total)
@@ -414,10 +483,18 @@ PanelWindow {
                                 color: root.walColor8
                                 font.pixelSize: 12
                                 font.family: "JetBrainsMono Nerd Font"
+                                opacity: clearWallMouse.containsMouse ? 1.0 : 0.7
+                                Behavior on opacity { NumberAnimation { duration: 100 } }
                                 MouseArea {
+                                    id: clearWallMouse
                                     anchors.fill: parent
+                                    anchors.margins: -4
+                                    hoverEnabled: true
                                     cursorShape: Qt.PointingHandCursor
-                                    onClicked: wallSearchInput.text = ""
+                                    onClicked: {
+                                        wallSearchInput.text = ""
+                                        wallSearchInput.forceActiveFocus()
+                                    }
                                 }
                             }
                         }
@@ -429,6 +506,7 @@ PanelWindow {
                         color: Qt.rgba(0, 0, 0, 0.3)
                         radius: 15
                         clip: true
+
                         GridView {
                             id: wallGridView
                             anchors.fill: parent
@@ -439,6 +517,49 @@ PanelWindow {
                             clip: true
                             cacheBuffer: 400
                             model: root.filteredWallpapers
+
+                            property real targetContentY: 0
+                            property bool animatingScroll: false
+
+                            NumberAnimation {
+                                id: wallScrollAnim
+                                target: wallGridView
+                                property: "contentY"
+                                duration: 300
+                                easing.type: Easing.OutCubic
+                                onFinished: wallGridView.animatingScroll = false
+                            }
+
+                            function smoothScrollTo(newY) {
+                                var maxY = Math.max(0, contentHeight - height)
+                                newY = Math.max(0, Math.min(newY, maxY))
+                                if (animatingScroll) {
+                                    wallScrollAnim.stop()
+                                }
+                                animatingScroll = true
+                                wallScrollAnim.from = contentY
+                                wallScrollAnim.to = newY
+                                targetContentY = newY
+                                wallScrollAnim.start()
+                            }
+
+                            function smoothScrollBy(delta) {
+                                var base = animatingScroll ? targetContentY : contentY
+                                smoothScrollTo(base + delta)
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                propagateComposedEvents: true
+                                onWheel: function(wheel) {
+                                    var step = -wheel.angleDelta.y / 120.0 * (wallGridView.cellHeight * 0.6)
+                                    wallGridView.smoothScrollBy(step)
+                                }
+                                onClicked: function(mouse) { mouse.accepted = false }
+                                onPressed: function(mouse) { mouse.accepted = false }
+                                onReleased: function(mouse) { mouse.accepted = false }
+                            }
+
                             delegate: Item {
                                 width: wallGridView.cellWidth
                                 height: wallGridView.cellHeight
@@ -476,7 +597,7 @@ PanelWindow {
                                             Image {
                                                 id: wallThumbImage
                                                 anchors.fill: parent
-                                                source: root.thumbsReady ? "file:///home/harman/.cache/wallpaper-thumbs/" + wallThumbImage.thumbHash + ".jpg" : ""
+                                                source: root.thumbsReady ? "file://" + Quickshell.env("HOME") + "/.cache/wallpaper-thumbs/" + wallThumbImage.thumbHash + ".jpg" : ""
                                                 fillMode: Image.PreserveAspectCrop
                                                 smooth: false
                                                 asynchronous: true
@@ -552,6 +673,7 @@ PanelWindow {
                                             elide: Text.ElideMiddle
                                             horizontalAlignment: Text.AlignHCenter
                                             verticalAlignment: Text.AlignVCenter
+                                            Behavior on color { ColorAnimation { duration: 120 } }
                                         }
                                     }
                                     MouseArea {
@@ -566,7 +688,11 @@ PanelWindow {
                                     }
                                 }
                             }
-                            ScrollBar.vertical: ScrollBar { active: true; width: 4 }
+                            ScrollBar.vertical: ScrollBar {
+                                active: true
+                                width: 4
+                                policy: ScrollBar.AsNeeded
+                            }
                         }
                         Text {
                             anchors.centerIn: parent
@@ -583,6 +709,11 @@ PanelWindow {
                             color: root.walColor8
                             font.pixelSize: 13
                             font.family: "JetBrainsMono Nerd Font"
+                            SequentialAnimation on opacity {
+                                loops: Animation.Infinite
+                                NumberAnimation { from: 0.4; to: 1.0; duration: 600; easing.type: Easing.InOutSine }
+                                NumberAnimation { from: 1.0; to: 0.4; duration: 600; easing.type: Easing.InOutSine }
+                            }
                         }
                     }
 
@@ -617,6 +748,8 @@ PanelWindow {
                 wallSearchInput.text = ""
                 root.selectedIndex = 0
                 root.wallSelectedIndex = 0
+                appListView.contentY = 0
+                wallGridView.contentY = 0
                 loadUsageProc.running = true
                 currentWallProc.running = true
                 focusDelayTimer.start()
