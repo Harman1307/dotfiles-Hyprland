@@ -520,6 +520,7 @@ PanelWindow {
                                     property bool isActive: bar.activeWsId === modelData.id
                                     property bool isHovered: wsMA.containsMouse
 
+                                    visible: modelData.id > 0
                                     width: Math.max(wsText.implicitWidth + 14, 26)
                                     height: 18
 
@@ -854,7 +855,7 @@ PanelWindow {
                         id: volumeLabel
                         anchors.centerIn: parent
                         text: bar.volumeStr
-                        color: bar.volumeMuted ? root.walColor8 : "#89dceb"
+                        color: bar.volumeMuted ? root.walColor8 : root.walColor5
                         font.pixelSize: 11
                         font.bold: true
                         font.family: "JetBrainsMono Nerd Font"

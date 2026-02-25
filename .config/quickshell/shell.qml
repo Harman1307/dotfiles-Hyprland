@@ -624,6 +624,12 @@ ShellRoot {
         }
     }
     IpcHandler {
+        target: "randomwallpaper"
+        function apply(path: string) {
+            root.applyWallpaper({ path: path, name: path.split("/").pop() })
+        }
+    }
+    IpcHandler {
         target: "wifi"
         function toggle() { root.toggleWifi() }
     }
