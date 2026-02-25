@@ -4,6 +4,7 @@ import Quickshell.Wayland
 import Quickshell.Hyprland
 import QtQuick
 import QtQuick.Layouts
+import Qt5Compat.GraphicalEffects
 
 PanelWindow {
     id: bar
@@ -16,8 +17,8 @@ PanelWindow {
     implicitHeight: 32
     color: "transparent"
 
-    property color notchColor: Qt.rgba(0, 0, 0, 0.38)
-    property color notchHoverColor: Qt.rgba(0, 0, 0, 0.52)
+    property color notchColor: Qt.rgba(0, 0, 0, 0.50)
+    property color notchHoverColor: Qt.rgba(0, 0, 0, 0.62)
     property int notchRadius: 12
     property int notchHeight: 32
 
@@ -122,22 +123,32 @@ PanelWindow {
     }
 
     Timer {
-        interval: 50
-        running: bar.mediaClass === "playing"
+        interval: 1500
+        running: true
         repeat: true
-        onTriggered: {
-            var newVals = []
-            for (var i = 0; i < 12; i++) {
-                var current = bar.cavaValues[i]
-                var target = Math.random() * 0.75 + 0.15
-                newVals.push(current * 0.35 + target * 0.65)
+        triggeredOnStart: true
+        onTriggered: { if (!mediaProc.running) mediaProc.running = true }
+    }
+
+    Process {
+        id: cavaProc
+        running: bar.mediaClass === "playing"
+        command: ["cava", "-p", Quickshell.env("HOME") + "/.config/cava/config_raw"]
+        stdout: SplitParser {
+            onRead: data => {
+                var parts = data.trim().split(";")
+                var vals = []
+                for (var i = 0; i < 12 && i < parts.length; i++) {
+                    vals.push(parseInt(parts[i]) / 255)
+                }
+                while (vals.length < 12) vals.push(0.1)
+                bar.cavaValues = vals
             }
-            bar.cavaValues = newVals
         }
     }
 
     Timer {
-        interval: 60
+        interval: 80
         running: bar.mediaClass !== "playing"
         repeat: true
         onTriggered: {
@@ -147,14 +158,6 @@ PanelWindow {
             }
             bar.cavaValues = newVals
         }
-    }
-
-    Timer {
-        interval: 1500
-        running: true
-        repeat: true
-        triggeredOnStart: true
-        onTriggered: { if (!mediaProc.running) mediaProc.running = true }
     }
 
     Process {
@@ -602,36 +605,53 @@ PanelWindow {
                         anchors.horizontalCenter: parent.horizontalCenter
                         spacing: 10
 
-                        Row {
+                        Item {
+                            width: cavaRow.width
+                            height: 14
                             anchors.verticalCenter: parent.verticalCenter
-                            spacing: 2
 
-                            Repeater {
-                                model: 12
+                            Row {
+                                id: cavaRow
+                                anchors.centerIn: parent
+                                spacing: 2
 
-                                Rectangle {
-                                    width: 2
-                                    height: Math.max(2, bar.cavaValues[index] * 12)
-                                    radius: 1
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    color: root.walColor2
-                                    opacity: bar.mediaClass === "playing" ? 0.85 : 0.25
-                                    antialiasing: true
+                                Repeater {
+                                    model: 12
 
-                                    Behavior on height { NumberAnimation { duration: 60; easing.type: Easing.OutQuad } }
-                                    Behavior on opacity { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
+                                    Rectangle {
+                                        width: 2.5
+                                        height: Math.max(3, bar.cavaValues[index] * 14)
+                                        radius: 1.25
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        color: root.walColor5
+                                        antialiasing: true
+
+                                        Behavior on height { NumberAnimation { duration: 60; easing.type: Easing.OutQuad } }
+                                    }
                                 }
                             }
                         }
 
                         Text {
+                            id: mediaLabel
                             anchors.verticalCenter: parent.verticalCenter
                             text: bar.mediaText
                             color: root.walColor2
                             font.pixelSize: 10
                             font.bold: true
                             font.family: "JetBrainsMono Nerd Font"
-                            opacity: bar.mediaClass === "playing" ? 1.0 : 0.6
+                            opacity: bar.mediaClass === "playing" ? 1.0 : 0.7
+
+                            layer.enabled: true
+                            layer.effect: DropShadow {
+                                horizontalOffset: 0
+                                verticalOffset: 1
+                                radius: 4
+                                samples: 9
+                                spread: 0.2
+                                color: Qt.rgba(0, 0, 0, 0.8)
+                                transparentBorder: true
+                            }
 
                             Behavior on opacity { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
                         }
@@ -639,17 +659,24 @@ PanelWindow {
 
                     Rectangle {
                         width: mediaContent.width
-                        height: 2
-                        radius: 1
-                        color: Qt.rgba(root.walColor2.r, root.walColor2.g, root.walColor2.b, 0.2)
+                        height: 3
+                        radius: 1.5
+                        color: Qt.rgba(0, 0, 0, 0.4)
                         visible: bar.mediaLength > 0
 
                         Rectangle {
                             width: bar.mediaLength > 0 ? parent.width * (bar.mediaPosition / bar.mediaLength) : 0
                             height: parent.height
-                            radius: 1
+                            radius: 1.5
                             color: root.walColor2
-                            opacity: 0.8
+
+                            layer.enabled: true
+                            layer.effect: Glow {
+                                radius: 3
+                                samples: 7
+                                color: root.walColor2
+                                transparentBorder: true
+                            }
 
                             Behavior on width { NumberAnimation { duration: 200; easing.type: Easing.Linear } }
                         }
