@@ -65,6 +65,7 @@ ShellRoot {
     property bool wallsLoaded: false
     property bool thumbsReady: false
     property bool walApplying: false
+    property var wallpaperHashes: ({})
 
     property bool wifiEnabled: true
     property string wifiCurrentSSID: ""
@@ -296,8 +297,27 @@ ShellRoot {
             "  fi; " +
             "done"
         ]
-        onExited: root.thumbsReady = true
+        onExited: {
+            root.thumbsReady = true
+            if (!hashAllProc.running) hashAllProc.running = true
+        }
     }
+
+    Process {
+    id: hashAllProc
+    command: ["bash", "-c", "for f in '" + root.wallpaperPath + "'/*; do [ -f \"$f\" ] && echo \"$f|$(echo -n \"$f\" | md5sum | cut -d' ' -f1)\"; done"]
+    stdout: SplitParser {
+        onRead: data => {
+            var parts = data.trim().split("|")
+            if (parts.length === 2 && parts[0] && parts[1]) {
+                var updated = root.wallpaperHashes
+                updated[parts[0]] = parts[1]
+                root.wallpaperHashes = updated
+                root.wallpaperHashesChanged()
+            }
+        }
+    }
+}
 
     Process {
         id: applyWallProc
