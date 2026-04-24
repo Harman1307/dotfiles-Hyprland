@@ -33,4 +33,3 @@ Inspired by: ViegPhunt, binnewbs, Mon4sm, r/unixporn
 
 ### THANKS FOR READING :)
 
-***NOTE***: I'm no longer maintaining this project. if you want you can check out the MangoWM config on my profile, which I'm currently maintaing. 
